@@ -16,6 +16,19 @@ def get_host_ip():
     
     return ip
 
+
+
+class Sala:
+    def __init__(self, nome, admin):
+        self.nome = nome
+        self.senha = ''
+        self.admin = admin
+        self.banned = []
+        self.clients = []
+        clients.append(admin)
+
+
+
 class Servidor:
     def __init__(self, host = '0.0.0.0', port = 12345):
         self.host = host
@@ -25,6 +38,7 @@ class Servidor:
         self.server.listen()
         self.clients = []
         self.nicknames = []
+        self.salas = []
 
     def broadcast(self, message):
         for client in self.clients:
@@ -49,10 +63,11 @@ class Servidor:
             client, address = self.server.accept()
             print(f"Conectado com {str(address)}")
 
+            
             client.send('NICK'.encode('utf-8'))
             nickname = client.recv(1024).decode('utf-8')
 
-            if(nickname not in nicknames):  
+            if((nickname not in self.nicknames) and (" " not in nickname)):  
                 self.nicknames.append(nickname)
                 self.clients.append(client)
 
@@ -64,7 +79,7 @@ class Servidor:
                 thread.start()
             
             else:
-                client.send("Erro, nickname já escolhido!")  
+                client.send("Erro, nickname inválido".encode('utf-8'))  
 
 if __name__ == "__main__":
     get_host_ip()
