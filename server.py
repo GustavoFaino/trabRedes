@@ -51,15 +51,20 @@ class Servidor:
 
             client.send('NICK'.encode('utf-8'))
             nickname = client.recv(1024).decode('utf-8')
-            self.nicknames.append(nickname)
-            self.clients.append(client)
 
-            print(f"Nickname do cliente é {nickname}!")
-            self.broadcast(f"{nickname} entrou no chat!".encode('utf-8'))
-            client.send('Conectado ao servidor!'.encode('utf-8'))
+            if(nickname not in nicknames):  
+                self.nicknames.append(nickname)
+                self.clients.append(client)
 
-            thread = threading.Thread(target=self.handle, args=(client,))
-            thread.start()
+                print(f"Nickname do cliente é {nickname}!")
+                self.broadcast(f"{nickname} entrou no chat!".encode('utf-8'))
+                client.send('Conectado ao servidor!'.encode('utf-8'))
+
+                thread = threading.Thread(target=self.handle, args=(client,))
+                thread.start()
+            
+            else:
+                client.send("Erro, nickname já escolhido!")  
 
 if __name__ == "__main__":
     get_host_ip()
