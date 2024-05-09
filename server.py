@@ -21,7 +21,8 @@ class Servidor:
         self.host = host
         self.port = port
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind((self.host, self.port))
+        #self.server.bind((self.host, self.port))
+        self.server.bind(('', self.port))
         self.server.listen()
         self.clients = []
         self.nicknames = []
