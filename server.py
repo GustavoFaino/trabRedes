@@ -25,14 +25,26 @@ def salaExiste(nome, salaList):
     return False
 
 
+def usuarioExiste(nome, usuarioList):
+    for usuario in usuarioList:
+        if nome == usuario.username:
+            return True
+    return False
+
+
+class Usuario:
+    def __init__(self, client):
+        self.username = ''
+        self.client = client
+        self.sala = ''
+
+
 class Sala:
     def __init__(self):
         self.nome = ''
         self.senha = ''
         self.admin = ''
         self.banned = []
-        self.clients = []
-
 
 
 class Servidor:
@@ -43,24 +55,23 @@ class Servidor:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.host, self.port))
         self.server.listen()
-        self.clients = []
-        self.usernames = []
+        self.usuarios = []
         self.salas = []
 
 
 
     def broadcast(self, message):
-        for client in self.clients:
-            client.send(message)
+        for usuario in self.usuarios:
+            usuario.client.send(message)
 
 
 
-    def criarSala(self, message, client):        
+    def criarSala(self, message, usuario):        
 
         split_msg = message.split(' ')
         
         if(len(split_msg) < 3):
-            client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
             return    
 
         salaAux = Sala()
@@ -71,27 +82,27 @@ class Servidor:
 
         if tipo == 'PRIVADA':
             if len(split_msg) < 4:
-                client.send('ERRO Sala privada deve ter senha'.encode('utf-8'))
+                usuario.client.send('ERRO Sala privada deve ter senha'.encode('utf-8'))
                 return   
             salaAux.senha = senha
 
         if salaExiste(nome, self.salas):  
-            client.send('ERRO Já existe uma sala com esse nome'.encode('utf-8')) 
+            usuario.client.send('ERRO Já existe uma sala com esse nome'.encode('utf-8')) 
             return
 
         elif((len(split_msg) > 3 and tipo == 'PUBLICA') or (len(split_msg) > 4 and tipo == 'PRIVADA')):
-            client.send('ERRO Nomes não podem ter espaços'.encode('utf-8'))
+            usuario.client.send('ERRO Nomes não podem ter espaços'.encode('utf-8'))
             return
         
         salaAux.nome = nome
-        salaAux.admin = client
+        salaAux.admin = usuario
 
         self.salas.append(salaAux)
 
-        client.send('CRIAR_SALA_OK'.encode('utf-8'))
+        usuario.client.send('CRIAR_SALA_OK'.encode('utf-8'))
 
 
-    def listarSalas(self, client):
+    def listarSalas(self, usuario):
         mensagem = 'SALAS'
 
         for sala in self.salas:
@@ -101,36 +112,35 @@ class Servidor:
             else:
                 mensagem = mensagem + '[privada]'
         
-        client.send(mensagem.encode('utf-8'))
+        usuario.client.send(mensagem.encode('utf-8'))
 
 
-    def treat_message(self, message, client):
+    def treat_message(self, message, usuario):
         split_msg = message.split(' ') # separa a mensagem de acordo com espacos
         command = split_msg[0]
 
         match command:
             case 'CRIAR_SALA':
                 print('criar sala')
-                self.criarSala(message, client)
+                self.criarSala(message, usuario)
             case 'LISTAR_SALAS':
                 print("listar salas")
-                self.listarSalas(client)
+                self.listarSalas(usuario)
                 
         
 
 
-    def handle(self, client):
+    def handle(self, usuario):
         while True:
             try:
-                message = client.recv(1024).decode('utf-8')
-                self.treat_message(message, client)
+                message = usuario.client.recv(1024).decode('utf-8')
+                self.treat_message(message, usuario)
                 #self.broadcast(message)
             except:
-                index = self.clients.index(client)
-                self.clients.remove(client)
-                client.close()
-                username = self.usernames[index]
-                self.usernames.remove(username)
+                index = self.usuarios.index(usuario)
+                self.usuarios.remove(usuario)
+                username = self.usuarios[index].username
+                usuario.close()
                 self.broadcast(f'{username} saiu do chat!'.encode('utf-8'))
                 break
 
@@ -151,23 +161,27 @@ class Servidor:
                 print(split_msg)
                 print(username,'res')
                 
-                if(username in self.usernames):  
-                    client.send("ERRO Já existe um usuário com esse nome".encode('utf-8')) 
+                
+                if usuarioExiste(username, self.usuarios):#(username in self.usuarios.usernames):  
+                    usuario.client.send("ERRO Já existe um usuário com esse nome".encode('utf-8')) 
                     #return
 
                 elif(len(split_msg) > 2):
-                    client.send("ERRO Nomes não podem ter espaços".encode('utf-8'))
+                    usuario.client.send("ERRO Nomes não podem ter espaços".encode('utf-8'))
                     #return
 
                 else:     
-                    self.usernames.append(username)
-                    self.clients.append(client)
+                    
+                    usuario = Usuario(client)
+                    usuario.username = username
+                    
+                    self.usuarios.append(usuario)
 
                     print(f"username do cliente é {username}!")
                     self.broadcast(f"{username} entrou no chat!".encode('utf-8'))
                     client.send('REGISTRO_OK'.encode('utf-8'))
                     print("regok")
-                    thread = threading.Thread(target=self.handle, args=(client,))
+                    thread = threading.Thread(target=self.handle, args=(usuario,))
                     thread.start()
 
                     client.send('REGISTRO_OK'.encode('utf-8'))
