@@ -1,6 +1,15 @@
 import os
 import socket
 import threading
+import base64
+
+
+def encode(msg):
+    return base64.b64encode(msg.encode('utf-8'))
+
+def decode(msg):
+    return (base64.b64decode(msg).decode('utf-8'))
+
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -9,7 +18,7 @@ def clear():
 def receive():
     while True:
         try:
-            message = client.recv(1024).decode('utf-8')
+            message = decode(client.recv(1024))
             print(message)
         except:
             print("Erro!")
@@ -20,15 +29,15 @@ def receive():
 def write():
     while True:
         message = input("")
-        client.send(message.encode('utf-8'))
+        client.send(encode(message))
 
 
 def registro():
     message = f'REGISTRO {username}'
-    client.send(message.encode('utf-8'))
+    client.send(encode(message))
 
     while True:
-        response = client.recv(1024).decode('utf-8') # cuidar esta linha 
+        response = decode(client.recv(1024)) # cuidar esta linha 
         split_res = response.split(' ')
         
 

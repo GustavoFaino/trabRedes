@@ -1,5 +1,15 @@
 import socket
 import threading
+import base64
+
+
+def encode(msg):
+    return base64.b64encode(msg.encode('utf-8'))
+
+def decode(msg):
+    print ((base64.b64decode(msg).decode('utf-8')))
+    return (base64.b64decode(msg).decode('utf-8'))
+
 
 def get_host_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -71,7 +81,7 @@ class Servidor:
         split_msg = message.split(' ')
         
         if(len(split_msg) < 3):
-            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Mensagem falta informações'))
             return    
 
         salaAux = Sala()
@@ -82,16 +92,16 @@ class Servidor:
 
         if tipo == 'PRIVADA':
             if len(split_msg) < 4:
-                usuario.client.send('ERRO Sala privada deve ter senha'.encode('utf-8'))
+                usuario.client.send(encode('ERRO Sala privada deve ter senha'))
                 return   
             salaAux.senha = senha
 
         if getSala(nome, self.salas) != None:  
-            usuario.client.send('ERRO Já existe uma sala com esse nome'.encode('utf-8')) 
+            usuario.client.send(encode('ERRO Já existe uma sala com esse nome')) 
             return
 
         elif((len(split_msg) > 3 and tipo == 'PUBLICA') or (len(split_msg) > 4 and tipo == 'PRIVADA')):
-            usuario.client.send('ERRO Nomes não podem ter espaços'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Nomes não podem ter espaços'))
             return
         
         salaAux.nome = nome
@@ -99,7 +109,7 @@ class Servidor:
 
         self.salas.append(salaAux)
 
-        usuario.client.send('CRIAR_SALA_OK'.encode('utf-8'))
+        usuario.client.send(encode('CRIAR_SALA_OK'))
 
 
     
@@ -107,18 +117,18 @@ class Servidor:
         split_msg = message.split(' ')
         
         if(len(split_msg) < 2):
-            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Mensagem falta informações'))
             return    
 
         nomeSala = split_msg[1]
     
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send('ERRO Sala non ecziste'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Sala non ecziste'))
             return
         
         if usuario != salaAux.admin:
-            usuario.client.send('ERRO Usuário não é admin'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Usuário não é admin'))
             return
 
         # removendo a sala do servidor
@@ -128,7 +138,7 @@ class Servidor:
         # separando mensagem dos atributos do protocolo
         frase = 'SALA_FECHADA ' + nomeSala
         for usr in salaAux.usuarios:
-            usr.client.send(frase.encode('utf-8'))
+            usr.client.send(encode(frase))
 
 
 
@@ -137,18 +147,18 @@ class Servidor:
         split_msg = message.split(' ')
 
         if(len(split_msg) < 3):
-            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Mensagem falta informações'))
             return
 
         nomeSala = split_msg[1]
     
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send('ERRO Sala non ecziste'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Sala non ecziste'))
             return
         
         if usuario != salaAux.admin:
-            usuario.client.send('ERRO Usuário não é admin'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Usuário não é admin'))
             return
 
 
@@ -156,7 +166,7 @@ class Servidor:
         usuarioBanido = getUsuario(nomeUsuarioBanido, salaAux.usuarios)
 
         if usuarioBanido == None:
-            usuario.client.send('ERRO Usuário a ser banido não está na sala'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Usuário a ser banido não está na sala'))
             return
 
         index = self.salas.index(salaAux)
@@ -166,11 +176,11 @@ class Servidor:
         self.salas[index].usuarios.remove(usuarioBanido)
 
         
-        usuarioBanido.client.send(f'BANIDO_DA_SALA {salaAux.nome}'.encode('utf-8'))
-        usuario.client.send('BANIMENTO_OK'.encode('utf-8'))
+        usuarioBanido.client.send(encode(f'BANIDO_DA_SALA {salaAux.nome}'))
+        usuario.client.send(encode('BANIMENTO_OK'))
 
         for usr in salaAux.usuarios:
-            usr.client.send(f'SAIU {salaAux.nome} {usuarioBanido.nome}'.encode('utf-8'))   
+            usr.client.send(encode(f'SAIU {salaAux.nome} {usuarioBanido.nome}'))   
 
 
 
@@ -179,34 +189,34 @@ class Servidor:
         split_msg = message.split(' ')
 
         if(len(split_msg) < 2):
-            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Mensagem falta informações'))
             return    
         
         senha = ''
         nomeSala = split_msg[1]
 
         if((len(split_msg) > 3)):
-            usuario.client.send('ERRO Muitos argumentos na mensagem'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Muitos argumentos na mensagem'))
             return
         
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send('ERRO Sala não existe'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Sala não existe'))
             return
 
         if usuario in salaAux.banidos:
-            usuario.client.send('ERRO Usuário foi banido da sala'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Usuário foi banido da sala'))
             return
 
         if usuario in salaAux.usuarios:
-            usuario.client.send('ERRO Usuário já está na sala'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Usuário já está na sala'))
             return
 
         if((len(split_msg) == 3)):
             senha = split_msg[2]
 
         if(salaAux.senha != '') and (salaAux.senha != senha):
-            usuario.client.send('ERRO Senha incorreta'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Senha incorreta'))
             return
 
         index = self.salas.index(salaAux)
@@ -217,7 +227,7 @@ class Servidor:
         
         for usr in salaAux.usuarios:
             mensagem = mensagem + ' ' + usr.nome
-        usr.client.send(mensagem.encode('utf-8'))
+        usr.client.send(encode(mensagem))
 
 
 
@@ -225,32 +235,32 @@ class Servidor:
         split_msg = message.split(' ')
 
         if(len(split_msg) < 2):
-            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Mensagem falta informações'))
             return    
         
         nomeSala = split_msg[1]
 
         if((len(split_msg) > 2)):
-            usuario.client.send('ERRO Muitos argumentos na mensagem'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Muitos argumentos na mensagem'))
             return
         
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send('ERRO Sala não existe'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Sala não existe'))
             return
 
         if not(usuario in salaAux.usuarios):
-            usuario.client.send('ERRO Usuário não está na sala'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Usuário não está na sala'))
             return
 
         index = self.salas.index(salaAux)
         self.salas[index].usuarios.remove(usuario)
 
         
-        usuario.client.send('SAIR_SALA_OK'.encode('utf-8'))
+        usuario.client.send(encode('SAIR_SALA_OK'))
 
         for usr in salaAux.usuarios:
-            usr.client.send(f'SAIU {salaAux.nome} {usuario.nome}'.encode('utf-8'))  
+            usr.client.send(encode(f'SAIU {salaAux.nome} {usuario.nome}'))  
         
 
 
@@ -264,7 +274,7 @@ class Servidor:
             else:
                 mensagem = mensagem + '[privada]'
         
-        usuario.client.send(mensagem.encode('utf-8'))
+        usuario.client.send(encode(mensagem))
 
 
 
@@ -272,17 +282,17 @@ class Servidor:
         split_msg = message.split(' ')
 
         if(len(split_msg) < 2):
-            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Mensagem falta informações'))
             return   
 
         nomeSala = split_msg[1]
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send('ERRO Sala não existe'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Sala não existe'))
             return
 
         if getUsuario(usuario.nome, salaAux.usuarios) == None:
-            usuario.client.send('ERRO Usuário não faz parte da sala'.encode('utf-8'))
+            usuario.client.send(encode('ERRO Usuário não faz parte da sala'))
             return
 
         # separando mensagem dos atributos do protocolo
@@ -291,7 +301,7 @@ class Servidor:
         frase = frase + ' '.join(palavras) if palavras else ''
 
         for usr in salaAux.usuarios:
-            usr.client.send(frase.encode('utf-8'))   
+            usr.client.send(encode(frase))   
         
         
 
@@ -329,7 +339,7 @@ class Servidor:
     def handle(self, usuario):
         while True:
             try:
-                message = usuario.client.recv(1024).decode('utf-8')
+                message = decode(usuario.client.recv(1024))
                 self.treat_message(message, usuario)
                 #self.broadcast(message)
             except:
@@ -337,7 +347,7 @@ class Servidor:
                 nome = self.usuarios[index].nome
                 self.usuarios.remove(usuario)
                 usuario.client.close()
-                self.broadcast(f'{nome} saiu do chat!'.encode('utf-8'))
+                self.broadcast(encode(f'{nome} saiu do chat!'))
                 break
 
 
@@ -347,7 +357,7 @@ class Servidor:
             client, address = self.server.accept()
             print(f"Conectado com {str(address)}")
             
-            message = client.recv(1024).decode('utf-8')
+            message = decode(client.recv(1024))
             
             split_msg = message.split(' ') # separa a mensagem de acordo com espacos
             command = split_msg[0]
@@ -359,11 +369,11 @@ class Servidor:
                 
                 
                 if getUsuario(nome, self.usuarios) != None:#(nome in self.usuarios.nomes):  
-                    usuario.client.send("ERRO Já existe um usuário com esse nome".encode('utf-8')) 
+                    usuario.client.send(encode("ERRO Já existe um usuário com esse nome")) 
                     #return
 
                 elif(len(split_msg) > 2):
-                    usuario.client.send("ERRO Nomes não podem ter espaços".encode('utf-8'))
+                    usuario.client.send(encode("ERRO Nomes não podem ter espaços"))
                     #return
 
                 else:     
@@ -374,13 +384,13 @@ class Servidor:
                     self.usuarios.append(usuario)
 
                     print(f"nome do cliente é {nome}!")
-                    self.broadcast(f"{nome} entrou no chat!".encode('utf-8'))
-                    client.send('REGISTRO_OK'.encode('utf-8'))
+                    self.broadcast(encode(f"{nome} entrou no chat!"))
+                    client.send(encode('REGISTRO_OK'))
                     print("regok")
                     thread = threading.Thread(target=self.handle, args=(usuario,))
                     thread.start()
 
-                    client.send('REGISTRO_OK'.encode('utf-8'))
+                    client.send(encode('REGISTRO_OK'))
 
 
 if __name__ == "__main__":
