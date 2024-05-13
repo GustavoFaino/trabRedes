@@ -18,14 +18,14 @@ def get_host_ip():
 
 
 
-def salaExiste(nome, salaList):
+def getSala(nome, salaList):
     for sala in salaList:
         if nome == sala.nome:
             return sala
     return None
 
 
-def usuarioExiste(nome, usuarioList):
+def getUsuario(nome, usuarioList):
     for usuario in usuarioList:
         if nome == usuario.nome:
             return usuario
@@ -43,7 +43,7 @@ class Sala:
         self.nome = ''
         self.senha = ''
         self.admin = ''
-        self.banned = []
+        self.banidos = []
         self.usuarios = []
 
 
@@ -86,7 +86,7 @@ class Servidor:
                 return   
             salaAux.senha = senha
 
-        if salaExiste(nome, self.salas) != None:  
+        if getSala(nome, self.salas) != None:  
             usuario.client.send('ERRO Já existe uma sala com esse nome'.encode('utf-8')) 
             return
 
@@ -112,7 +112,7 @@ class Servidor:
 
         nomeSala = split_msg[1]
     
-        salaAux = salaExiste(nomeSala, self.salas)
+        salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
             usuario.client.send('ERRO Sala non ecziste'.encode('utf-8'))
             return
@@ -132,6 +132,49 @@ class Servidor:
 
 
 
+
+    def banirUsuario(self, message, usuario):
+        split_msg = message.split(' ')
+
+        if(len(split_msg) < 3):
+            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
+            return
+
+        nomeSala = split_msg[1]
+    
+        salaAux = getSala(nomeSala, self.salas)
+        if(salaAux == None):
+            usuario.client.send('ERRO Sala non ecziste'.encode('utf-8'))
+            return
+        
+        if usuario != salaAux.admin:
+            usuario.client.send('ERRO Usuário não é admin'.encode('utf-8'))
+            return
+
+
+        nomeUsuarioBanido = split_msg[2]
+        usuarioBanido = getUsuario(nomeUsuarioBanido, salaAux.usuarios)
+
+        if usuarioBanido == None:
+            usuario.client.send('ERRO Usuário a ser banido não está na sala'.encode('utf-8'))
+            return
+
+        index = self.salas.index(salaAux)
+        self.salas[index].banidos.append(usuarioBanido)
+
+        index = self.salas.index(salaAux)
+        self.salas[index].usuarios.remove(usuarioBanido)
+
+        
+        usuarioBanido.client.send(f'BANIDO_DA_SALA {salaAux.nome}'.encode('utf-8'))
+        usuario.client.send('BANIMENTO_OK'.encode('utf-8'))
+
+        for usr in salaAux.usuarios:
+            usr.client.send(f'SAIU {salaAux.nome} {usuarioBanido.nome}'.encode('utf-8'))   
+
+
+
+
     def entrarSala(self, message, usuario):
         split_msg = message.split(' ')
 
@@ -146,9 +189,13 @@ class Servidor:
             usuario.client.send('ERRO Muitos argumentos na mensagem'.encode('utf-8'))
             return
         
-        salaAux = salaExiste(nomeSala, self.salas)
+        salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
             usuario.client.send('ERRO Sala não existe'.encode('utf-8'))
+            return
+
+        if usuario in salaAux.banidos:
+            usuario.client.send('ERRO Usuário foi banido da sala'.encode('utf-8'))
             return
 
         if usuario in salaAux.usuarios:
@@ -187,7 +234,7 @@ class Servidor:
             usuario.client.send('ERRO Muitos argumentos na mensagem'.encode('utf-8'))
             return
         
-        salaAux = salaExiste(nomeSala, self.salas)
+        salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
             usuario.client.send('ERRO Sala não existe'.encode('utf-8'))
             return
@@ -201,6 +248,9 @@ class Servidor:
 
         
         usuario.client.send('SAIR_SALA_OK'.encode('utf-8'))
+
+        for usr in salaAux.usuarios:
+            usr.client.send(f'SAIU {salaAux.nome} {usuario.nome}'.encode('utf-8'))  
         
 
 
@@ -226,12 +276,12 @@ class Servidor:
             return   
 
         nomeSala = split_msg[1]
-        salaAux = salaExiste(nomeSala, self.salas)
+        salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
             usuario.client.send('ERRO Sala não existe'.encode('utf-8'))
             return
 
-        if usuarioExiste(usuario.nome, salaAux.usuarios) == None:
+        if getUsuario(usuario.nome, salaAux.usuarios) == None:
             usuario.client.send('ERRO Usuário não faz parte da sala'.encode('utf-8'))
             return
 
@@ -241,15 +291,7 @@ class Servidor:
         frase = frase + ' '.join(palavras) if palavras else ''
 
         for usr in salaAux.usuarios:
-            usr.client.send(frase.encode('utf-8'))
-
-
-    def banirUsuario(self, message, usuario):
-        split_msg = message.split(' ')
-
-        if(len(split_msg) < 3):
-            usuario.client.send('ERRO Mensagem falta informações'.encode('utf-8'))
-            return   
+            usr.client.send(frase.encode('utf-8'))   
         
         
 
@@ -316,7 +358,7 @@ class Servidor:
                 print(nome,'res')
                 
                 
-                if usuarioExiste(nome, self.usuarios) != None:#(nome in self.usuarios.nomes):  
+                if getUsuario(nome, self.usuarios) != None:#(nome in self.usuarios.nomes):  
                     usuario.client.send("ERRO Já existe um usuário com esse nome".encode('utf-8')) 
                     #return
 
