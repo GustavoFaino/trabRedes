@@ -1,6 +1,15 @@
 import socket
 import threading
 import base64
+import ast
+
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+import binascii
+
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+from Crypto.Random import get_random_bytes
 
 
 def encode(msg):
@@ -67,7 +76,62 @@ class Servidor:
         self.server.listen()
         self.usuarios = []
         self.salas = []
+        # RSA
+        self.key = RSA.generate(1024)
+        self.private_key = self.key.export_key()
+        self.public_key = self.key.publickey().export_key()
 
+
+
+    def autenticarUsuario(self, message, usuario):
+
+        """ # Message to be encrypted
+        message = b'\xbcaU\x90\xc4|q\xf1\xbdi\xfb\x00\xa3\xee e\x8a\xb0\xb3\x11E\xf661\xc7a\x90\xbb\xcd|q\xd0'
+
+        print("1")
+        # Encrypt the message
+        encryptor = PKCS1_OAEP.new(RSA.import_key(self.public_key))
+        print("2")
+        encrypted = encryptor.encrypt(message)
+
+        print("3")
+        # Decrypt the message
+        decryptor = PKCS1_OAEP.new(RSA.import_key(self.private_key))
+        print("4")
+        decrypted = decryptor.decrypt(encrypted)
+        print("5")
+
+        print(decrypted) """
+
+        split_msg = message.split(' ')
+
+        if(len(split_msg) < 2):
+            usuario.client.send(encode('ERRO Mensagem falta informações'))
+            return    
+
+        usuario.client.send(encode(f'CHAVE_PUBLICA {self.public_key.decode()}'))
+
+        print("1")
+        resposta = decode(usuario.client.recv(1024)) # resposta com chave AES criptografada do cliente
+        split_res = resposta.split(' ')
+        while(split_res[0] != 'CHAVE_SIMETRICA'):
+            resposta = decode(usuario.client.recv(1024)) # resposta com chave AES criptografada do cliente
+            split_res = resposta.split(' ')
+
+        _, encrypted_AES_key = resposta.split(' ', 1)
+        print("2")
+
+        encrypted_AES_key = bytes(ast.literal_eval(encrypted_AES_key))
+        print(encrypted_AES_key)
+        
+        print("3")
+
+        cipher_rsa = PKCS1_OAEP.new(RSA.import_key(self.private_key)) # descriptografando chave AES
+        print("4")
+        AES_key = cipher_rsa.decrypt(encrypted_AES_key)
+        print("5")
+        print("Decrypted data:")
+        print(AES_key) 
 
 
     def broadcast(self, message):
@@ -303,7 +367,7 @@ class Servidor:
         for usr in salaAux.usuarios:
             usr.client.send(encode(frase))   
         
-        
+    
 
 
     def treat_message(self, message, usuario):
@@ -332,6 +396,9 @@ class Servidor:
             case 'BANIR_USUARIO':
                 print("banir usuario")
                 self.banirUsuario(message, usuario)
+            case 'AUTENTICADAO':
+                print("autenticar usuario")
+                self.autenticarUsuario(message, usuario)
                 
         
 
@@ -368,7 +435,7 @@ class Servidor:
                 print(nome,'res')
                 
                 
-                if getUsuario(nome, self.usuarios) != None:#(nome in self.usuarios.nomes):  
+                if getUsuario(nome, self.usuarios) != None:
                     usuario.client.send(encode("ERRO Já existe um usuário com esse nome")) 
                     #return
 
@@ -377,7 +444,6 @@ class Servidor:
                     #return
 
                 else:     
-                    
                     usuario = Usuario(client)
                     usuario.nome = nome
                     
