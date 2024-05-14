@@ -12,13 +12,27 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 
 
+def encryptAES(plaintext, key):
+    # Create an AES cipher object with the key and AES.MODE_ECB mode
+    cipher = AES.new(key, AES.MODE_ECB)
+    # Pad the plaintext and encrypt it
+    ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))
+    return ciphertext
+ 
+def decryptAES(ciphertext, key):
+    # Create an AES cipher object with the key and AES.MODE_ECB mode
+    cipher = AES.new(key, AES.MODE_ECB)
+    # Decrypt the ciphertext and remove the padding
+    decrypted_data = unpad(cipher.decrypt(ciphertext), AES.block_size)
+    return decrypted_data
+
+
 def encode(msg):
     return base64.b64encode(msg.encode('utf-8'))
 
 def decode(msg):
-    print ((base64.b64decode(msg).decode('utf-8')))
+    #print ((base64.b64decode(msg).decode('utf-8')))
     return (base64.b64decode(msg).decode('utf-8'))
-
 
 def get_host_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -55,6 +69,7 @@ class Usuario:
     def __init__(self, client):
         self.nome = ''
         self.client = client
+        self.AES_key = b''
 
 
 class Sala:
@@ -85,24 +100,6 @@ class Servidor:
 
     def autenticarUsuario(self, message, usuario):
 
-        """ # Message to be encrypted
-        message = b'\xbcaU\x90\xc4|q\xf1\xbdi\xfb\x00\xa3\xee e\x8a\xb0\xb3\x11E\xf661\xc7a\x90\xbb\xcd|q\xd0'
-
-        print("1")
-        # Encrypt the message
-        encryptor = PKCS1_OAEP.new(RSA.import_key(self.public_key))
-        print("2")
-        encrypted = encryptor.encrypt(message)
-
-        print("3")
-        # Decrypt the message
-        decryptor = PKCS1_OAEP.new(RSA.import_key(self.private_key))
-        print("4")
-        decrypted = decryptor.decrypt(encrypted)
-        print("5")
-
-        print(decrypted) """
-
         split_msg = message.split(' ')
 
         if(len(split_msg) < 2):
@@ -111,7 +108,6 @@ class Servidor:
 
         usuario.client.send(encode(f'CHAVE_PUBLICA {self.public_key.decode()}'))
 
-        print("1")
         resposta = decode(usuario.client.recv(1024)) # resposta com chave AES criptografada do cliente
         split_res = resposta.split(' ')
         while(split_res[0] != 'CHAVE_SIMETRICA'):
@@ -119,20 +115,16 @@ class Servidor:
             split_res = resposta.split(' ')
 
         _, encrypted_AES_key = resposta.split(' ', 1)
-        print("2")
 
         encrypted_AES_key = bytes(ast.literal_eval(encrypted_AES_key))
-        print(encrypted_AES_key)
         
-        print("3")
-
         cipher_rsa = PKCS1_OAEP.new(RSA.import_key(self.private_key)) # descriptografando chave AES
-        print("4")
         AES_key = cipher_rsa.decrypt(encrypted_AES_key)
-        print("5")
-        print("Decrypted data:")
-        print(AES_key) 
 
+        # guardando chave AES no usuario
+        index = self.usuarios.index(usuario)
+        self.usuarios[index].AES_key = AES_key  
+        
 
     def broadcast(self, message):
         for usuario in self.usuarios:
@@ -368,10 +360,47 @@ class Servidor:
             usr.client.send(encode(frase))   
         
     
+    def getKeyFromUser(self, usuario):
+        index = self.usuarios.index(usuario)
+        return self.usuarios[index].AES_key
 
 
     def treat_message(self, message, usuario):
-        split_msg = message.split(' ') # separa a mensagem de acordo com espacos
+        print("1") 
+
+        print("2")
+        try:
+            authMessage = decode(message)
+            split_msg = authMessage.split(' ') # separa a mensagem de acordo com espacos
+        except:
+            split_msg = 'non', 'funfa'
+        
+        command = split_msg[0]
+
+        print("3")
+        if command == 'AUTENTICACAO':
+            print("autenticar usuario")
+            self.autenticarUsuario(authMessage, usuario)
+            print('3.5')
+            return  
+
+        
+        print(message)
+        print(type(message))
+        AES_key = self.getKeyFromUser(usuario)
+        
+        if AES_key == b'':
+            usuario.client.send(encode('ERRO Usuário não foi autenticado'))
+            return
+        
+        message = decryptAES(message, AES_key)
+        message = decode(message)
+        print(message)
+        print(type(message))
+
+        #print(message)
+
+        split_msg = message.split(' ')
         command = split_msg[0]
 
         match command:
@@ -396,9 +425,6 @@ class Servidor:
             case 'BANIR_USUARIO':
                 print("banir usuario")
                 self.banirUsuario(message, usuario)
-            case 'AUTENTICADAO':
-                print("autenticar usuario")
-                self.autenticarUsuario(message, usuario)
                 
         
 
@@ -406,7 +432,7 @@ class Servidor:
     def handle(self, usuario):
         while True:
             try:
-                message = decode(usuario.client.recv(1024))
+                message = usuario.client.recv(1024)
                 self.treat_message(message, usuario)
                 #self.broadcast(message)
             except:
@@ -431,8 +457,8 @@ class Servidor:
 
             if(command == 'REGISTRO'):
                 nome = split_msg[1] # (' '.join(message.split(' ')[1:]))
-                print(split_msg)
-                print(nome,'res')
+                #print(split_msg)
+                #print(nome,'res')
                 
                 
                 if getUsuario(nome, self.usuarios) != None:
@@ -449,10 +475,10 @@ class Servidor:
                     
                     self.usuarios.append(usuario)
 
-                    print(f"nome do cliente é {nome}!")
+                    #print(f"nome do cliente é {nome}!")
                     self.broadcast(encode(f"{nome} entrou no chat!"))
                     client.send(encode('REGISTRO_OK'))
-                    print("regok")
+                    #print("regok")
                     thread = threading.Thread(target=self.handle, args=(usuario,))
                     thread.start()
 
