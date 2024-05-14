@@ -133,11 +133,14 @@ class Servidor:
 
 
     def criarSala(self, message, usuario):        
+        AES_key = self.getKeyFromUser(usuario)
 
         split_msg = message.split(' ')
-        
+
+        print(split_msg)
+
         if(len(split_msg) < 3):
-            usuario.client.send(encode('ERRO Mensagem falta informações'))
+            usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
 
         salaAux = Sala()
@@ -148,16 +151,17 @@ class Servidor:
 
         if tipo == 'PRIVADA':
             if len(split_msg) < 4:
-                usuario.client.send(encode('ERRO Sala privada deve ter senha'))
-                return   
+                usuario.client.send(encryptAES(encode('ERRO Sala privada deve ter senha'), AES_key))
+                return
+            senha = split_msg[3]   
             salaAux.senha = senha
 
         if getSala(nome, self.salas) != None:  
-            usuario.client.send(encode('ERRO Já existe uma sala com esse nome')) 
+            usuario.client.send(encryptAES(encode('ERRO Já existe uma sala com esse nome'), AES_key))
             return
 
         elif((len(split_msg) > 3 and tipo == 'PUBLICA') or (len(split_msg) > 4 and tipo == 'PRIVADA')):
-            usuario.client.send(encode('ERRO Nomes não podem ter espaços'))
+            usuario.client.send(encryptAES(encode('ERRO Nomes não podem ter espaços'), AES_key))
             return
         
         salaAux.nome = nome
@@ -165,26 +169,27 @@ class Servidor:
 
         self.salas.append(salaAux)
 
-        usuario.client.send(encode('CRIAR_SALA_OK'))
-
+        usuario.client.send(encryptAES(encode('CRIAR_SALA_OK'), AES_key))
 
     
     def fecharSala(self, message, usuario):
+        AES_key = self.getKeyFromUser(usuario)
+
         split_msg = message.split(' ')
         
         if(len(split_msg) < 2):
-            usuario.client.send(encode('ERRO Mensagem falta informações'))
+            usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
 
         nomeSala = split_msg[1]
     
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send(encode('ERRO Sala non ecziste'))
+            usuario.client.send(encryptAES(encode('ERRO Sala non ecziste'), AES_key))
             return
         
         if usuario != salaAux.admin:
-            usuario.client.send(encode('ERRO Usuário não é admin'))
+            usuario.client.send(encryptAES(encode('ERRO Usuário não é admin'), AES_key))
             return
 
         # removendo a sala do servidor
@@ -194,27 +199,30 @@ class Servidor:
         # separando mensagem dos atributos do protocolo
         frase = 'SALA_FECHADA ' + nomeSala
         for usr in salaAux.usuarios:
-            usr.client.send(encode(frase))
+            usr_AES_key = self.getKeyFromUser(usr)
+            usr.client.send(encryptAES(encode(frase), usr_AES_key))
 
 
 
 
     def banirUsuario(self, message, usuario):
+        AES_key = self.getKeyFromUser(usuario)
+
         split_msg = message.split(' ')
 
         if(len(split_msg) < 3):
-            usuario.client.send(encode('ERRO Mensagem falta informações'))
+            usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return
 
         nomeSala = split_msg[1]
     
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send(encode('ERRO Sala non ecziste'))
+            usuario.client.send(encryptAES(encode('ERRO Sala non ecziste'), AES_key))
             return
         
         if usuario != salaAux.admin:
-            usuario.client.send(encode('ERRO Usuário não é admin'))
+            usuario.client.send(encryptAES(encode('ERRO Usuário não é admin'), AES_key))
             return
 
 
@@ -222,7 +230,7 @@ class Servidor:
         usuarioBanido = getUsuario(nomeUsuarioBanido, salaAux.usuarios)
 
         if usuarioBanido == None:
-            usuario.client.send(encode('ERRO Usuário a ser banido não está na sala'))
+            usuario.client.send(encryptAES(encode('ERRO Usuário a ser banido não está na sala'), AES_key))
             return
 
         index = self.salas.index(salaAux)
@@ -231,48 +239,51 @@ class Servidor:
         index = self.salas.index(salaAux)
         self.salas[index].usuarios.remove(usuarioBanido)
 
-        
-        usuarioBanido.client.send(encode(f'BANIDO_DA_SALA {salaAux.nome}'))
-        usuario.client.send(encode('BANIMENTO_OK'))
+        usuarioBanido.client.send(encryptAES(encode(f'BANIDO_DA_SALA {salaAux.nome}'), AES_key))
+        usuario.client.send(encryptAES(encode('BANIMENTO_OK'), AES_key))
 
         for usr in salaAux.usuarios:
-            usr.client.send(encode(f'SAIU {salaAux.nome} {usuarioBanido.nome}'))   
+            usr_AES_key = self.getKeyFromUser(usr)
+            usr.client.send(encryptAES(encode(f'SAIU {salaAux.nome} {usuarioBanido.nome}'), usr_AES_key))  
 
 
 
 
     def entrarSala(self, message, usuario):
+        AES_key = self.getKeyFromUser(usuario)
+
         split_msg = message.split(' ')
 
         if(len(split_msg) < 2):
-            usuario.client.send(encode('ERRO Mensagem falta informações'))
+            usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
         
         senha = ''
         nomeSala = split_msg[1]
 
         if((len(split_msg) > 3)):
-            usuario.client.send(encode('ERRO Muitos argumentos na mensagem'))
+            usuario.client.send(encryptAES(encode('ERRO Muitos argumentos na mensagem'), AES_key))
             return
         
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send(encode('ERRO Sala não existe'))
+            usuario.client.send(encryptAES(encode('ERRO Sala não existe'), AES_key))
             return
 
         if usuario in salaAux.banidos:
-            usuario.client.send(encode('ERRO Usuário foi banido da sala'))
+            usuario.client.send(encryptAES(encode('ERRO Usuário foi banido da sala'), AES_key))
             return
 
         if usuario in salaAux.usuarios:
-            usuario.client.send(encode('ERRO Usuário já está na sala'))
+            usuario.client.send(encryptAES(encode('ERRO Usuário já está na sala'), AES_key))
             return
 
+        print(message)
         if((len(split_msg) == 3)):
             senha = split_msg[2]
 
         if(salaAux.senha != '') and (salaAux.senha != senha):
-            usuario.client.send(encode('ERRO Senha incorreta'))
+            usuario.client.send(encryptAES(encode('ERRO Senha incorreta'), AES_key))
             return
 
         index = self.salas.index(salaAux)
@@ -283,44 +294,49 @@ class Servidor:
         
         for usr in salaAux.usuarios:
             mensagem = mensagem + ' ' + usr.nome
-        usr.client.send(encode(mensagem))
+        usuario.client.send(encryptAES(encode(mensagem), AES_key))
 
 
 
     def sairSala(self, message, usuario):
+        AES_key = self.getKeyFromUser(usuario)
+
         split_msg = message.split(' ')
 
         if(len(split_msg) < 2):
-            usuario.client.send(encode('ERRO Mensagem falta informações'))
+            usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
         
         nomeSala = split_msg[1]
 
         if((len(split_msg) > 2)):
-            usuario.client.send(encode('ERRO Muitos argumentos na mensagem'))
+            usuario.client.send(encryptAES(encode('ERRO Muitos argumentos na mensagem'), AES_key))
             return
         
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send(encode('ERRO Sala não existe'))
+            usuario.client.send(encryptAES(encode('ERRO Sala não existe'), AES_key))
             return
 
         if not(usuario in salaAux.usuarios):
-            usuario.client.send(encode('ERRO Usuário não está na sala'))
+            usuario.client.send(encryptAES(encode('ERRO Usuário não está na sala'), AES_key))
             return
 
         index = self.salas.index(salaAux)
         self.salas[index].usuarios.remove(usuario)
 
         
-        usuario.client.send(encode('SAIR_SALA_OK'))
+        usuario.client.send(encryptAES(encode('SAIR_SALA_OK'), AES_key))
 
         for usr in salaAux.usuarios:
-            usr.client.send(encode(f'SAIU {salaAux.nome} {usuario.nome}'))  
-        
+            usr_AES_key = self.getKeyFromUser(usr)
+            usr.client.send(encryptAES(encode(f'SAIU {salaAux.nome} {usuario.nome}'), usr_AES_key))  
+
 
 
     def listarSalas(self, usuario):
+        AES_key = self.getKeyFromUser(usuario)
+
         mensagem = 'SALAS'
 
         for sala in self.salas:
@@ -330,25 +346,27 @@ class Servidor:
             else:
                 mensagem = mensagem + '[privada]'
         
-        usuario.client.send(encode(mensagem))
+        usuario.client.send(encryptAES(encode(mensagem), AES_key))
 
 
 
     def enviarMensagem(self, message, usuario):
+        AES_key = self.getKeyFromUser(usuario)
+
         split_msg = message.split(' ')
 
         if(len(split_msg) < 2):
-            usuario.client.send(encode('ERRO Mensagem falta informações'))
+            usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return   
 
         nomeSala = split_msg[1]
         salaAux = getSala(nomeSala, self.salas)
         if(salaAux == None):
-            usuario.client.send(encode('ERRO Sala não existe'))
+            usuario.client.send(encryptAES(encode('ERRO Sala não existe'), AES_key))
             return
 
         if getUsuario(usuario.nome, salaAux.usuarios) == None:
-            usuario.client.send(encode('ERRO Usuário não faz parte da sala'))
+            usuario.client.send(encryptAES(encode('ERRO Usuário não faz parte da sala'), AES_key))
             return
 
         # separando mensagem dos atributos do protocolo
@@ -357,7 +375,8 @@ class Servidor:
         frase = frase + ' '.join(palavras) if palavras else ''
 
         for usr in salaAux.usuarios:
-            usr.client.send(encode(frase))   
+            usr_AES_key = self.getKeyFromUser(usr)
+            usr.client.send(encryptAES(encode(frase), usr_AES_key))  
         
     
     def getKeyFromUser(self, usuario):

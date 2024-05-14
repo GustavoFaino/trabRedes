@@ -2,11 +2,11 @@ import os
 import socket
 import threading
 import base64
-import ast
+import hashlib
+
 
 from Crypto.PublicKey import RSA  # provided by pycryptodome
 from Crypto.Cipher import PKCS1_OAEP
-import binascii
 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -42,7 +42,8 @@ def clear():
 def receive():
     while True:
         try:
-            message = decode(client.recv(1024))
+            message = decryptAES(client.recv(1024), AES_key)
+            message = decode(message)
             print(message)
         except:
             print("Erro!")
@@ -53,7 +54,6 @@ def receive():
 def write():
     while True:
         message = input("")
-        encryptAES(encode(message), AES_key)
         client.send(encryptAES(encode(message), AES_key))
 
 
@@ -129,6 +129,9 @@ def menu():
         clear() """
             
 
+# LEIA-ME
+# quando for fazer a UI use hashed_data = hashlib.sha256(data.encode()) pra passar as senhas no criar e entrar sala
+
 ip = input("Digite o IP do server: ")
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((str(ip), 12345))
@@ -136,8 +139,8 @@ client.connect((str(ip), 12345))
 username = input("Digite o seu username: ")
 registro()
 AES_key = get_random_bytes(32)  # Generating keys/passphrase
-#autenticarUsuario(username, AES_key)
 
+autenticarUsuario(username, AES_key)
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
