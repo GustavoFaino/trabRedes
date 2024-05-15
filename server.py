@@ -123,11 +123,6 @@ class Servidor:
         # guardando chave AES no usuario
         index = self.usuarios.index(usuario)
         self.usuarios[index].AES_key = AES_key  
-        
-
-    def broadcast(self, message):
-        for usuario in self.usuarios:
-            usuario.client.send(message)
     
 
 
@@ -142,7 +137,8 @@ class Servidor:
             usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
 
-        if(split_msg[0] != 'PUBLICA') and (split_msg[0] != 'PRIVADA'):
+        print(split_msg)
+        if(split_msg[1] != 'PUBLICA') and (split_msg[1] != 'PRIVADA'):
             usuario.client.send(encryptAES(encode('ERRO Tipo de sala indefinido (publica ou privada)'), AES_key))
             return
 
@@ -235,6 +231,11 @@ class Servidor:
         if usuarioBanido == None:
             usuario.client.send(encryptAES(encode('ERRO Usuário a ser banido não está na sala'), AES_key))
             return
+        
+        if usuarioBanido == usuario:
+            usuario.client.send(encryptAES(encode('ERRO Admin não pode se banir'), AES_key))
+            return
+
 
         index = self.salas.index(salaAux)
         self.salas[index].banidos.append(usuarioBanido)
@@ -242,7 +243,7 @@ class Servidor:
         index = self.salas.index(salaAux)
         self.salas[index].usuarios.remove(usuarioBanido)
 
-        usuarioBanido.client.send(encryptAES(encode(f'BANIDO_DA_SALA {salaAux.nome}'), AES_key))
+        usuarioBanido.client.send(encryptAES(encode(f'BANIDO_DA_SALA {salaAux.nome}'), usuarioBanido.AES_key))
         usuario.client.send(encryptAES(encode('BANIMENTO_OK'), AES_key))
 
         for usr in salaAux.usuarios:
@@ -483,13 +484,13 @@ class Servidor:
                     self.usuarios.append(usuario)
 
                     #print(f"nome do cliente é {nome}!")
-                    self.broadcast(encode(f"{nome} entrou no chat!"))
+                    #self.broadcast(encode(f"{nome} entrou no chat!"))
                     client.send(encode('REGISTRO_OK'))
                     #print("regok")
                     thread = threading.Thread(target=self.handle, args=(usuario, address))
                     thread.start()
 
-                    client.send(encode('REGISTRO_OK'))
+                    #client.send(encode('REGISTRO_OK'))
 
 
 if __name__ == "__main__":

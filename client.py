@@ -41,14 +41,21 @@ def clear():
 
 def receive():
     while True:
+        
         try:
-            message = decryptAES(client.recv(1024), AES_key)
-            message = decode(message)
-            print(message)
+            message = client.recv(1024)
         except:
             print("Conexão Perdida!")
             client.close()
             break
+
+        try:
+            message = decryptAES(message, AES_key)
+            message = decode(message)
+            print(message)
+        except:
+            print("Mensagem não pôde ser decodificada - descartada")
+            
 
 
 def write():
