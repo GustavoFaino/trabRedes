@@ -1,4 +1,5 @@
 import os
+import sys
 import socket
 import threading
 import base64
@@ -11,6 +12,10 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
+
+# variável de shutdown do lado do cliente
+shutdownFlag = False
+
 
 
 def encode(msg):
@@ -40,27 +45,28 @@ def clear():
 
 
 def receive():
-    while True:
+    global shutdownFlag
+    while not shutdownFlag:
         
         try:
             message = client.recv(1024)
-        except:
-            print("Conexão Perdida!")
-            client.close()
-            break
-
-        try:
             message = decryptAES(message, AES_key)
             message = decode(message)
             print(message)
         except:
-            print("Mensagem não pôde ser decodificada - descartada")
+            print("Conexão Perdida!")
+            client.close()
+            shutdownFlag = True
             
 
 
 def write():
     while True:
         message = input("")
+        
+        if shutdownFlag:
+            break
+
         split_msg = message.split(' ')
 
         if(len(split_msg)):
@@ -117,7 +123,6 @@ def registro():
 
         if(split_res[0] == 'REGISTRO_OK'):
             print("Registro feito com sucesso!")
-            return
         elif(split_res[0] == 'ERRO'):
             print(response)
             break
@@ -144,12 +149,13 @@ def menu():
         clear()
             
 
-# LEIA-ME
-# quando for fazer a UI use hashed_data = hashlib.sha256(data.encode()) pra passar as senhas no criar e entrar sala
-
 ip = input("Digite o IP do server: ")
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect((str(ip), 12345))
+try:
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((str(ip), 12345))
+except socket.error as e:
+    print(f"Erro na conexão: {e}")
+    sys.exit(1)
 
 username = input("Digite o seu username: ")
 registro()
@@ -164,7 +170,11 @@ write_thread.start()
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
+while not shutdownFlag: 
+    pass # não faz nada
 
-
+print("Programa finalizado")
+write_thread.join()
+receive_thread.join()
 
 

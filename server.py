@@ -137,7 +137,7 @@ class Servidor:
             usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
 
-        print(split_msg)
+        #print(split_msg)
         if(split_msg[1] != 'PUBLICA') and (split_msg[1] != 'PRIVADA'):
             usuario.client.send(encryptAES(encode('ERRO Tipo de sala indefinido (publica ou privada)'), AES_key))
             return
@@ -345,11 +345,7 @@ class Servidor:
 
         for sala in self.salas:
             mensagem = mensagem + ' ' + sala.nome
-            if sala.senha == '':
-                mensagem = mensagem + '[publica]'
-            else:
-                mensagem = mensagem + '[privada]'
-        
+
         usuario.client.send(encryptAES(encode(mensagem), AES_key))
 
 
