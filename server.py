@@ -232,6 +232,10 @@ class Servidor:
         if usuarioBanido == None:
             usuario.client.send(encryptAES(encode('ERRO Usuário a ser banido não está na sala'), AES_key))
             return
+        
+        if usuarioBanido == usuario:
+            usuario.client.send(encryptAES(encode('ERRO Admin não pode se banir'), AES_key))
+            return
 
         index = self.salas.index(salaAux)
         self.salas[index].banidos.append(usuarioBanido)
@@ -239,14 +243,14 @@ class Servidor:
         index = self.salas.index(salaAux)
         self.salas[index].usuarios.remove(usuarioBanido)
 
-        usuarioBanido.client.send(encryptAES(encode(f'BANIDO_DA_SALA {salaAux.nome}'), AES_key))
+        usuarioBanido.client.send(encryptAES(encode(f'BANIDO_DA_SALA {salaAux.nome}'), usuarioBanido.AES_key))
         usuario.client.send(encryptAES(encode('BANIMENTO_OK'), AES_key))
 
         for usr in salaAux.usuarios:
             usr_AES_key = self.getKeyFromUser(usr)
             usr.client.send(encryptAES(encode(f'SAIU {salaAux.nome} {usuarioBanido.nome}'), usr_AES_key))  
 
-
+    
 
 
     def entrarSala(self, message, usuario):
@@ -434,7 +438,7 @@ class Servidor:
                 self.entrarSala(message, usuario)
             case 'SAIR_SALA':
                 print("sair sala")
-                self.entrarSala(message, usuario)
+                self.sairSala(message, usuario)
             case 'ENVIAR_MENSAGEM':
                 print("enviar mensagem")
                 self.enviarMensagem(message, usuario)
@@ -459,7 +463,7 @@ class Servidor:
                 nome = self.usuarios[index].nome
                 self.usuarios.remove(usuario)
                 usuario.client.close()
-                self.broadcast(encode(f'{nome} saiu do chat!'))
+                #self.broadcast(encode(f'{nome} saiu do chat!'))
                 break
 
 
@@ -481,11 +485,11 @@ class Servidor:
                 
                 
                 if getUsuario(nome, self.usuarios) != None:
-                    usuario.client.send(encode("ERRO Já existe um usuário com esse nome")) 
+                    client.send(encode("ERRO Já existe um usuário com esse nome")) 
                     #return
 
                 elif(len(split_msg) > 2):
-                    usuario.client.send(encode("ERRO Nomes não podem ter espaços"))
+                    client.send(encode("ERRO Nomes não podem ter espaços"))
                     #return
 
                 else:     
@@ -495,7 +499,7 @@ class Servidor:
                     self.usuarios.append(usuario)
 
                     #print(f"nome do cliente é {nome}!")
-                    self.broadcast(encode(f"{nome} entrou no chat!"))
+                    #self.broadcast(encode(f"{nome} entrou no chat!"))
                     client.send(encode('REGISTRO_OK'))
                     #print("regok")
                     thread = threading.Thread(target=self.handle, args=(usuario,))

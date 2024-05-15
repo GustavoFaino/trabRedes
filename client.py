@@ -43,10 +43,11 @@ def receive():
     while True:
         try:
             message = decryptAES(client.recv(1024), AES_key)
+            print('2')
             message = decode(message)
             print(message)
         except:
-            print("Erro!")
+            print("Erro no recebimento de mensagens!")
             client.close()
             break
 
@@ -103,12 +104,6 @@ def registro():
             break
 
 
-""" def createChat():
-    print("create")
-    c = input()
-    
-# joinChat:
-
 
 def menu():
     choice = 'a'
@@ -116,17 +111,18 @@ def menu():
     while choice != '0':
 
         print("[0] Sair")
-        print("[1] Entrar Sala")
-        print("[2] Criar em Sala")
+        print("[1] Criar Sala")
+        print("[2] Entrar em sala")
 
         choice = input()
 
         match choice:
             case '1':
-                print("entrar sala")
+                print("Listar Comandos")
             case '2':
-                createChat()
-        clear() """
+                print("Enviar Comando")
+                #createChat()
+        clear()
             
 
 # LEIA-ME
@@ -138,9 +134,11 @@ client.connect((str(ip), 12345))
 
 username = input("Digite o seu username: ")
 registro()
-AES_key = get_random_bytes(32)  # Generating keys/passphrase
 
+AES_key = get_random_bytes(32)  # Generating keys/passphrase
 autenticarUsuario(username, AES_key)
+
+
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
