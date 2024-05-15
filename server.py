@@ -5,7 +5,6 @@ import ast
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
-import binascii
 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -137,11 +136,15 @@ class Servidor:
 
         split_msg = message.split(' ')
 
-        print(split_msg)
+        #print(split_msg)
 
         if(len(split_msg) < 3):
             usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
+
+        if(split_msg[0] != 'PUBLICA') and (split_msg[0] != 'PRIVADA'):
+            usuario.client.send(encryptAES(encode('ERRO Tipo de sala indefinido (publica ou privada)'), AES_key))
+            return
 
         salaAux = Sala()
 
@@ -232,10 +235,6 @@ class Servidor:
         if usuarioBanido == None:
             usuario.client.send(encryptAES(encode('ERRO Usuário a ser banido não está na sala'), AES_key))
             return
-        
-        if usuarioBanido == usuario:
-            usuario.client.send(encryptAES(encode('ERRO Admin não pode se banir'), AES_key))
-            return
 
         index = self.salas.index(salaAux)
         self.salas[index].banidos.append(usuarioBanido)
@@ -243,14 +242,14 @@ class Servidor:
         index = self.salas.index(salaAux)
         self.salas[index].usuarios.remove(usuarioBanido)
 
-        usuarioBanido.client.send(encryptAES(encode(f'BANIDO_DA_SALA {salaAux.nome}'), usuarioBanido.AES_key))
+        usuarioBanido.client.send(encryptAES(encode(f'BANIDO_DA_SALA {salaAux.nome}'), AES_key))
         usuario.client.send(encryptAES(encode('BANIMENTO_OK'), AES_key))
 
         for usr in salaAux.usuarios:
             usr_AES_key = self.getKeyFromUser(usr)
             usr.client.send(encryptAES(encode(f'SAIU {salaAux.nome} {usuarioBanido.nome}'), usr_AES_key))  
 
-    
+
 
 
     def entrarSala(self, message, usuario):
@@ -282,7 +281,7 @@ class Servidor:
             usuario.client.send(encryptAES(encode('ERRO Usuário já está na sala'), AES_key))
             return
 
-        print(message)
+        #print(message)
         if((len(split_msg) == 3)):
             senha = split_msg[2]
 
@@ -389,9 +388,7 @@ class Servidor:
 
 
     def treat_message(self, message, usuario):
-        print("1") 
 
-        print("2")
         try:
             authMessage = decode(message)
             split_msg = authMessage.split(' ') # separa a mensagem de acordo com espacos
@@ -400,16 +397,12 @@ class Servidor:
         
         command = split_msg[0]
 
-        print("3")
         if command == 'AUTENTICACAO':
-            print("autenticar usuario")
+            #print("autenticar usuario")
             self.autenticarUsuario(authMessage, usuario)
-            print('3.5')
             return  
 
         
-        print(message)
-        print(type(message))
         AES_key = self.getKeyFromUser(usuario)
         
         if AES_key == b'':
@@ -418,8 +411,6 @@ class Servidor:
         
         message = decryptAES(message, AES_key)
         message = decode(message)
-        print(message)
-        print(type(message))
 
         #print(message)
 
@@ -428,31 +419,24 @@ class Servidor:
 
         match command:
             case 'CRIAR_SALA':
-                print('criar sala')
                 self.criarSala(message, usuario)
             case 'LISTAR_SALAS':
-                print("listar salas")
                 self.listarSalas(usuario)
             case 'ENTRAR_SALA':
-                print("entrar sala")
                 self.entrarSala(message, usuario)
             case 'SAIR_SALA':
-                print("sair sala")
-                self.sairSala(message, usuario)
+                self.entrarSala(message, usuario)
             case 'ENVIAR_MENSAGEM':
-                print("enviar mensagem")
                 self.enviarMensagem(message, usuario)
             case 'FECHAR_SALA':
-                print("fechar sala")
                 self.fecharSala(message, usuario)
             case 'BANIR_USUARIO':
-                print("banir usuario")
                 self.banirUsuario(message, usuario)
                 
         
 
 
-    def handle(self, usuario):
+    def handle(self, usuario, address):
         while True:
             try:
                 message = usuario.client.recv(1024)
@@ -463,7 +447,7 @@ class Servidor:
                 nome = self.usuarios[index].nome
                 self.usuarios.remove(usuario)
                 usuario.client.close()
-                #self.broadcast(encode(f'{nome} saiu do chat!'))
+                print(f"Desconectado  {str(address)}")
                 break
 
 
@@ -485,11 +469,11 @@ class Servidor:
                 
                 
                 if getUsuario(nome, self.usuarios) != None:
-                    client.send(encode("ERRO Já existe um usuário com esse nome")) 
+                    usuario.client.send(encode("ERRO Já existe um usuário com esse nome")) 
                     #return
 
                 elif(len(split_msg) > 2):
-                    client.send(encode("ERRO Nomes não podem ter espaços"))
+                    usuario.client.send(encode("ERRO Nomes não podem ter espaços"))
                     #return
 
                 else:     
@@ -499,10 +483,10 @@ class Servidor:
                     self.usuarios.append(usuario)
 
                     #print(f"nome do cliente é {nome}!")
-                    #self.broadcast(encode(f"{nome} entrou no chat!"))
+                    self.broadcast(encode(f"{nome} entrou no chat!"))
                     client.send(encode('REGISTRO_OK'))
                     #print("regok")
-                    thread = threading.Thread(target=self.handle, args=(usuario,))
+                    thread = threading.Thread(target=self.handle, args=(usuario, address))
                     thread.start()
 
                     client.send(encode('REGISTRO_OK'))

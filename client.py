@@ -43,11 +43,10 @@ def receive():
     while True:
         try:
             message = decryptAES(client.recv(1024), AES_key)
-            print('2')
             message = decode(message)
             print(message)
         except:
-            print("Erro no recebimento de mensagens!")
+            print("Conexão Perdida!")
             client.close()
             break
 
@@ -55,6 +54,19 @@ def receive():
 def write():
     while True:
         message = input("")
+        split_msg = message.split(' ')
+
+        if(len(split_msg)):
+            if(split_msg[0] == 'CRIAR_SALA') and (split_msg[1] == 'PRIVADA') and (len(split_msg) == 4): # caso tente criar uma sala e esteja passando uma senha, faça o hash da senha
+                senha = split_msg[3]
+                split_msg[3] = hashlib.sha256(senha.encode()).hexdigest()
+                message = ' '.join(split_msg)
+
+            elif(split_msg[0] == 'ENTRAR_SALA') and (len(split_msg) == 3): # caso tente entrar em uma sala e esteja passando uma senha, faça o hash da senha
+                senha = split_msg[2]
+                split_msg[2] = hashlib.sha256(senha.encode()).hexdigest()
+                message = ' '.join(split_msg)
+
         client.send(encryptAES(encode(message), AES_key))
 
 
@@ -139,11 +151,11 @@ AES_key = get_random_bytes(32)  # Generating keys/passphrase
 autenticarUsuario(username, AES_key)
 
 
-receive_thread = threading.Thread(target=receive)
-receive_thread.start()
-
 write_thread = threading.Thread(target=write)
 write_thread.start()
+
+receive_thread = threading.Thread(target=receive)
+receive_thread.start()
 
 
 
