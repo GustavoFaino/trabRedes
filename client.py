@@ -112,7 +112,10 @@ def enviarMensagem(sala):
         split_msg = mensagem.split(' ')
         
         if(split_msg[0] == 'BANIR_USUARIO' and len(split_msg) == 2):
-            client.send(encryptAES(encode(f'BANIR_USUARIO {sala} {split_msg[1]}'), AES_key))  
+            client.send(encryptAES(encode(f'BANIR_USUARIO {sala} {split_msg[1]}'), AES_key)) 
+
+        elif(split_msg[0] == 'FECHAR_SALA'):
+            client.send(encryptAES(encode(f'FECHAR_SALA {sala}'), AES_key))
         else:
             client.send(encryptAES(encode(f'ENVIAR_MENSAGEM {sala} {mensagem}'), AES_key))  
 
@@ -254,6 +257,7 @@ def entrarSala():
         return
     
     print("Para sair da sala escreva: SAIR_SALA")
+    print("Para fechar a sala escreva: FECHAR_SALA")
     print("Para banir um usuário escreva: BANIR_USUARIO <nome>")
     input("[Pressione Enter]")
     clear()

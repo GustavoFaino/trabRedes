@@ -63,6 +63,11 @@ def getUsuario(nome, usuarioList):
             return usuario
     return None
 
+def getSalaUsuario(usuario, salaList):
+    for sala in salaList:
+        if(usuario in sala.usuarios):
+            return sala
+    return None
 
 class Usuario:
     def __init__(self, client):
@@ -449,6 +454,34 @@ class Servidor:
                 #nome = self.usuarios[index].nome
                 self.usuarios.remove(usuario)
                 usuario.client.close()
+
+
+                # fechar salas as quais o usuario eh admin
+                for sala in self.salas:
+                    if(usuario == sala.admin):
+
+                        index = self.salas.index(sala)
+                        # separando mensagem dos atributos do protocolo
+                        frase = 'SALA_FECHADA ' + sala.nome
+                        for usr in self.salas[index].usuarios:
+                            usr_AES_key = self.getKeyFromUser(usr)
+                            usr.client.send(encryptAES(encode(frase), usr_AES_key))
+
+                        # removendo a sala do servidor
+                        self.salas.pop(index)
+
+
+                sala = getSalaUsuario(usuario, self.salas) # removendo usuario desconectado da sala
+                if sala != None:
+                    index = self.salas.index(sala)
+                    index2 = self.salas[index].usuarios.index(usuario)
+                    self.salas[index].usuarios.pop(index2)
+
+                    for usr in self.salas[index].usuarios:
+                        usr_AES_key = self.getKeyFromUser(usr)
+                        usr.client.send(encryptAES(encode(f'SAIU {sala.nome} {usuario.nome}'), usr_AES_key))  
+
+
                 print(f"Desconectado  {str(address)}")
                 break
 
