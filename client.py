@@ -13,8 +13,17 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 
+import getpass
+
+
 # variável de shutdown do lado do cliente
 shutdownFlag = False
+serverMessage = ''
+
+
+
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 
 
@@ -38,10 +47,6 @@ def decryptAES(ciphertext, key):
     # Decrypt the ciphertext and remove the padding
     decrypted_data = unpad(cipher.decrypt(ciphertext), AES.block_size)
     return decrypted_data
-
-
-def clear():
-    os.system('cls' if os.name == 'nt' else 'clear')
 
 
 def receive():
@@ -81,6 +86,57 @@ def write():
                 message = ' '.join(split_msg)
 
         client.send(encryptAES(encode(message), AES_key))
+
+
+sairFlag = False
+
+
+def sairSala(sala):
+    client.send(encryptAES(encode(f'SAIR_SALA {sala}'), AES_key))
+    #global sairFlag
+    #sairFlag = False
+
+
+def enviarMensagem(sala):
+    global sairFlag
+    while True:
+        if sairFlag:
+            sairSala(sala)
+            return
+        
+        mensagem = input()
+        if(mensagem == 'SAIR_SALA'):
+            sairSala(sala)
+            sairFlag = True
+            return
+
+        client.send(encryptAES(encode(f'ENVIAR_MENSAGEM {sala} {mensagem}'), AES_key))  
+
+
+
+def receberMensagem():
+    global serverMessage 
+    global sairFlag
+
+    while True:                
+        try:
+            serverMessage = decode(decryptAES(client.recv(1024), AES_key))
+        except:
+            print("ERRO Conexão perdida")
+            sairFlag = True
+            return
+
+        if sairFlag == True:
+            return
+
+        split_srv = serverMessage.split(' ')
+        if(split_srv[0] != 'MENSAGEM'):
+            print(serverMessage)
+            return
+
+        if(split_srv[2] != username):
+            string = ' '.join(split_srv[3:])
+            print(f'{split_srv[2]}: {string}')
 
 
 
@@ -123,15 +179,76 @@ def registro():
 
         if(split_res[0] == 'REGISTRO_OK'):
             print("Registro feito com sucesso!")
+            return
         elif(split_res[0] == 'ERRO'):
             print(response)
-            break
+            sys.exit(1)
+
+
+def criarSala():
+    
+    clear()
+    # Criando a sala
+    nome = input("Nome da sala: ")
+    senha = getpass.getpass(prompt="Crie uma senha: ")
+    senha = hashlib.sha256(senha.encode()).hexdigest()
+
+    if(senha == ''):
+        message = f'CRIAR_SALA PUBLICA {nome}'
+    else:
+        message = f'CRIAR_SALA PRIVADA {nome} {senha}'
+
+    client.send(encryptAES(encode(message), AES_key))
+    
+    resposta = decode(decryptAES(client.recv(1024), AES_key))
+    print(resposta)
+    input("[Pressione Enter]")
+
+
+
+def entrarSala():
+    clear()
+    nome = input("Nome da sala: ")
+    senha = getpass.getpass(prompt="Senha da sala: ")
+    senha = hashlib.sha256(senha.encode()).hexdigest()
+    
+    if(senha == ''):
+        message = f'ENTRAR_SALA {nome}'
+    else:
+        message = f'ENTRAR_SALA {nome} {senha}'
+
+    client.send(encryptAES(encode(message), AES_key))
+
+    resposta = decode(decryptAES(client.recv(1024), AES_key))
+    print(resposta)
+
+    split_res = resposta.split(' ')
+    if(split_res[0] == 'ERRO'):
+        input("[Pressione Enter]")
+        return
+    
+    print("Para sair da sala escreva: SAIR_SALA")
+    input("[Pressione Enter]")
+    clear()
+
+    enviarMensagem_thread = threading.Thread(target=enviarMensagem, args=(nome,))
+    enviarMensagem_thread.start()
+
+    receberMensagem_thread = threading.Thread(target=receberMensagem)
+    receberMensagem_thread.start()
+
+    enviarMensagem_thread.join()
+    receberMensagem_thread.join()
+    
+    global sairFlag
+    sairFlag = False
+    
+    input("[Pressione Enter]")
 
 
 
 def menu():
     choice = 'a'
-
     while choice != '0':
 
         print("[0] Sair")
@@ -142,10 +259,11 @@ def menu():
 
         match choice:
             case '1':
-                print("Listar Comandos")
+                print("criar sala")
+                criarSala()
             case '2':
-                print("Enviar Comando")
-                #createChat()
+                print("entrarsala")
+                entrarSala()
         clear()
             
 
@@ -164,17 +282,22 @@ AES_key = get_random_bytes(32)  # Generating keys/passphrase
 autenticarUsuario(username, AES_key)
 
 
-write_thread = threading.Thread(target=write)
+
+# menu do usuário
+menu()
+
+
+""" write_thread = threading.Thread(target=write)
 write_thread.start()
 
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
 while not shutdownFlag: 
-    pass # não faz nada
+    pass # não faz nada """
 
 print("Programa finalizado")
-write_thread.join()
-receive_thread.join()
+#write_thread.join()
+#receive_thread.join()
 
 

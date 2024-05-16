@@ -136,6 +136,9 @@ class Servidor:
         if(len(split_msg) < 3):
             usuario.client.send(encryptAES(encode('ERRO Mensagem falta informações'), AES_key))
             return    
+        
+        if (split_msg[2] == ''):
+            usuario.client.send(encryptAES(encode('ERRO Nome não pode estar vazio'), AES_key))
 
         #print(split_msg)
         if(split_msg[1] != 'PUBLICA') and (split_msg[1] != 'PRIVADA'):
@@ -154,15 +157,17 @@ class Servidor:
                 return
             senha = split_msg[3]   
             salaAux.senha = senha
+            
 
+        if((len(split_msg) > 3 and tipo == 'PUBLICA') or (len(split_msg) > 4 and tipo == 'PRIVADA')):
+            usuario.client.send(encryptAES(encode('ERRO Nomes não podem ter espaços'), AES_key))
+            return
+        
         if getSala(nome, self.salas) != None:  
             usuario.client.send(encryptAES(encode('ERRO Já existe uma sala com esse nome'), AES_key))
             return
 
-        elif((len(split_msg) > 3 and tipo == 'PUBLICA') or (len(split_msg) > 4 and tipo == 'PRIVADA')):
-            usuario.client.send(encryptAES(encode('ERRO Nomes não podem ter espaços'), AES_key))
-            return
-        
+
         salaAux.nome = nome
         salaAux.admin = usuario
 
@@ -409,7 +414,7 @@ class Servidor:
         message = decryptAES(message, AES_key)
         message = decode(message)
 
-        #print(message)
+        print(message)
 
         split_msg = message.split(' ')
         command = split_msg[0]
@@ -422,7 +427,7 @@ class Servidor:
             case 'ENTRAR_SALA':
                 self.entrarSala(message, usuario)
             case 'SAIR_SALA':
-                self.entrarSala(message, usuario)
+                self.sairSala(message, usuario)
             case 'ENVIAR_MENSAGEM':
                 self.enviarMensagem(message, usuario)
             case 'FECHAR_SALA':
@@ -441,7 +446,7 @@ class Servidor:
                 #self.broadcast(message)
             except:
                 index = self.usuarios.index(usuario)
-                nome = self.usuarios[index].nome
+                #nome = self.usuarios[index].nome
                 self.usuarios.remove(usuario)
                 usuario.client.close()
                 print(f"Desconectado  {str(address)}")
@@ -464,14 +469,14 @@ class Servidor:
                 #print(split_msg)
                 #print(nome,'res')
                 
+                if (nome == ''):
+                    client.send(encode("ERRO Nome não pode estar vazio")) 
                 
                 if getUsuario(nome, self.usuarios) != None:
-                    usuario.client.send(encode("ERRO Já existe um usuário com esse nome")) 
-                    #return
+                    client.send(encode("ERRO Já existe um usuário com esse nome")) 
 
                 elif(len(split_msg) > 2):
-                    usuario.client.send(encode("ERRO Nomes não podem ter espaços"))
-                    #return
+                    client.send(encode("ERRO Nomes não podem ter espaços"))
 
                 else:     
                     usuario = Usuario(client)
