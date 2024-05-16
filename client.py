@@ -5,7 +5,6 @@ import threading
 import base64
 import hashlib
 
-
 from Crypto.PublicKey import RSA  # provided by pycryptodome
 from Crypto.Cipher import PKCS1_OAEP
 
@@ -19,7 +18,6 @@ import getpass
 # variável de shutdown do lado do cliente
 shutdownFlag = False
 serverMessage = ''
-
 
 
 def clear():
@@ -100,17 +98,23 @@ def sairSala(sala):
 def enviarMensagem(sala):
     global sairFlag
     while True:
-        if sairFlag:
-            sairSala(sala)
-            return
-        
+                
         mensagem = input()
         if(mensagem == 'SAIR_SALA'):
             sairSala(sala)
             sairFlag = True
             return
+        
+        elif sairFlag:
+            sairSala(sala)
+            return
 
-        client.send(encryptAES(encode(f'ENVIAR_MENSAGEM {sala} {mensagem}'), AES_key))  
+        split_msg = mensagem.split(' ')
+        
+        if(split_msg[0] == 'BANIR_USUARIO' and len(split_msg) == 2):
+            client.send(encryptAES(encode(f'BANIR_USUARIO {sala} {split_msg[1]}'), AES_key))  
+        else:
+            client.send(encryptAES(encode(f'ENVIAR_MENSAGEM {sala} {mensagem}'), AES_key))  
 
 
 
@@ -130,13 +134,24 @@ def receberMensagem():
             return
 
         split_srv = serverMessage.split(' ')
-        if(split_srv[0] != 'MENSAGEM'):
-            print(serverMessage)
-            return
+        command = split_srv[0]
+        
+        match command:
+            case 'MENSAGEM':
+                if(split_srv[2] != username):
+                    string = ' '.join(split_srv[3:])
+                    print(f'{split_srv[2]}: {string}')
+            
+            case 'BANIDO_DA_SALA' | 'SALA_FECHADA':
+                print(serverMessage)
+                sairFlag = True
+                print(decode(decryptAES(client.recv(1024), AES_key)))
+                return
 
-        if(split_srv[2] != username):
-            string = ' '.join(split_srv[3:])
-            print(f'{split_srv[2]}: {string}')
+            case _:
+                print(serverMessage)
+
+        
 
 
 
@@ -208,6 +223,17 @@ def criarSala():
 
 def entrarSala():
     clear()
+
+    client.send(encryptAES(encode('LISTAR_SALAS'), AES_key))
+    msgSalas = decode(decryptAES(client.recv(1024), AES_key))
+    split_msg = msgSalas.split(' ')
+    split_msg = split_msg[1:]
+
+    print("Salas Disponíveis:")
+    for s in split_msg:
+        print(f'- {s} ')
+
+
     nome = input("Nome da sala: ")
     senha = getpass.getpass(prompt="Senha da sala: ")
     senha = hashlib.sha256(senha.encode()).hexdigest()
@@ -228,6 +254,7 @@ def entrarSala():
         return
     
     print("Para sair da sala escreva: SAIR_SALA")
+    print("Para banir um usuário escreva: BANIR_USUARIO <nome>")
     input("[Pressione Enter]")
     clear()
 
